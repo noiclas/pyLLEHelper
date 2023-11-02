@@ -40,7 +40,7 @@ class pyLLEHelper(LLEsolver):
 			julia = 'julia'
 		if sys.platform == 'win32':
 			#EDIT THIS SO IT WORKS FOR MARK
-			julia = os.path.expanduser('~') + '\\AppData\\Local\\Julia-1.1.1\\bin\\julia.exe'
+			julia = os.path.expanduser('~') + '\\AppData\\Local\\Programs\\Julia-1.9.3\\bin\\julia.exe'
 		return julia
 
 	# -- These two functions likely unnecessary, yet keeping them in for now
