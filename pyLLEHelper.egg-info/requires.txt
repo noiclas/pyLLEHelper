@@ -1,0 +1,8 @@
+scipy
+plotly
+numpy
+matplotlib
+h5py
+prettytable
+matplotlib
+ipdb

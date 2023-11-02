@@ -1,0 +1,21 @@
+Metadata-Version: 2.1
+Name: pyLLEHelper
+Version: 1.0.0
+Summary: LLE Solver
+Home-page: https://github.com/noiclas/pyLLEHelper.git
+Author: Greg Moille
+Author-email: gmoille@umed.gov
+License: Open
+Classifier: Programming Language :: Python :: 3
+Classifier: License :: OSI Approved
+Classifier: Operating System :: OS Independent
+Requires-Dist: scipy
+Requires-Dist: plotly
+Requires-Dist: numpy
+Requires-Dist: matplotlib
+Requires-Dist: h5py
+Requires-Dist: prettytable
+Requires-Dist: matplotlib
+Requires-Dist: ipdb
+
+User friendly LLE solver. For more information, visit our github repository page

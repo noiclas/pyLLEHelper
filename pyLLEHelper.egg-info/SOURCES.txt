@@ -1,0 +1,14 @@
+InstallPkg.jl
+MANIFEST.in
+README.md
+setup.py
+pyLLEHelper/ComputeLLE.jl
+pyLLEHelper/__init__.py
+pyLLEHelper/_analyzedisp.py
+pyLLEHelper/_llesolver.py
+pyLLEHelper.egg-info/PKG-INFO
+pyLLEHelper.egg-info/SOURCES.txt
+pyLLEHelper.egg-info/dependency_links.txt
+pyLLEHelper.egg-info/not-zip-safe
+pyLLEHelper.egg-info/requires.txt
+pyLLEHelper.egg-info/top_level.txt

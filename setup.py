@@ -11,23 +11,23 @@ class MyInstall(install):
         for ii in range(20):
             print('-'*10)
         if sys.platform == 'darwin':
-            julia = 'julia'
+            julia = '/Applications/Julia-1.9.app/Contents/Resources/julia/bin/julia'
         if sys.platform == 'linux2':
             julia = 'julia'
         if sys.platform == 'win32':
-            julia = os.path.expanduser('~') + '\\AppData\\Local\\Julia-1.1.1\\bin\\julia.exe'
+            julia = os.path.expanduser('~') + '\\AppData\\Local\\Programs\\Julia-1.9.3\\bin\\julia.exe'
         sub.call([julia, 'InstallPkg.jl'])
 
 
-setup(name='pyLLE',
-      version='4.1.1',
+setup(name='pyLLEHelper',
+      version='1.0.0',
       description='LLE Solver',
-      url='https://github.com/gregmoille/pyLLE',
+      url='https://github.com/noiclas/pyLLEHelper.git',
       author='Greg Moille',
       author_email='gmoille@umed.gov',
       license='Open',
       long_description='User friendly LLE solver. For more information, visit our github repository page',
-      packages=['pyLLE'],
+      packages=['pyLLEHelper'],
       install_requires=[
           'scipy',
           'plotly',
