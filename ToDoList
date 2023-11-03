@@ -1,0 +1,12 @@
+Please Add Notes to this To Do List.
+
+MAKE SURE TO DO GIT ADD TODOLIST AND NOT GIT ADD . WHEN ONLY PUSHING THE LIST
+
+Dint fitting stuff
+
+Allow saving to any path given
+
+Figure out tf is going on with the fig.show and/or return fig stuff. Ideally I wouldnt want to be returning a bunch of fig objects,
+	but fig.show() does not work in jupyter lab.
+
+	Maybe even completely switch to pyplot. The information is exactly the same. Plotly just allows you to zoom in and pan.
