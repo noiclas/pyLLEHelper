@@ -1,5 +1,5 @@
 # exclude everything except directory foo/bar
-pyLLE.egg-info*
+pyLLEHelper.egg-info*
 .gitignore
 Icon*
 Icon^M
