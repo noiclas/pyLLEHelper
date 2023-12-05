@@ -3,8 +3,8 @@ Name: pyLLEHelper
 Version: 1.0.0
 Summary: LLE Solver
 Home-page: https://github.com/noiclas/pyLLEHelper.git
-Author: Greg Moille
-Author-email: gmoille@umed.gov
+Author: Nic Arnaud
+Author-email: narnaud@ucsb.edu
 License: Open
 Classifier: Programming Language :: Python :: 3
 Classifier: License :: OSI Approved
@@ -18,4 +18,4 @@ Requires-Dist: prettytable
 Requires-Dist: matplotlib
 Requires-Dist: ipdb
 
-User friendly LLE solver. For more information, visit our github repository page
+User friendly LLE solver. Modified from Greg Moille's pyLLE to include simulating perturbations
