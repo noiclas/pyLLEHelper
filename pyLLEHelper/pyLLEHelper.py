@@ -1,9 +1,11 @@
 from .Edited_llesolver import LLEsolver #Just need to change the Julia file that the thing uses
+from .DintFuncs import *
 import numpy as np
 import matplotlib.pyplot as plt
 import plotly.graph_objs as go
 import plotly.io as pio
 import pickle as pkl
+import pandas as pd
 import sys
 import os
 pio.renderers.default = "notebook"
@@ -29,6 +31,13 @@ class pyLLEHelper(LLEsolver):
 		# These are here for ease on typing. May need to change the [] part of Pin
 		self.Tscan = self._sim["Tscan"] 
 		self.Pin = self._sim["Pin"][0]
+		self.N_mu = self._sim["mu_sim"][1]
+		self.num_probe = self._sim["num_probe"]
+
+		if self._sim["domega_end"] == self._sim["domega_init"]:
+			self.detuning = self._sim["domega_init"]
+		else:
+			self.detuning = None
 
 	def getBin(self):
 		'''
@@ -68,9 +77,9 @@ class pyLLEHelper(LLEsolver):
 		Returns:
 			newD1 - adjusted D1 value which should "freeze" the soliton when set as D1_manual.
 		'''
-		cyclesPerStep = self.sim.Tscan/self.sim.num_probe
+		cyclesPerStep = self.Tscan/self.num_probe
 		slope, _ = self.calcThetaSlope()
-		Trt0 = 2*np.pi/self.disp.D1
+		Trt0 = 2*np.pi/self._sim['D1']
 		frep = 1/Trt0 * (1-slope/(cyclesPerStep))
 		newD1 = 2*np.pi*frep
 		return newD1
@@ -101,7 +110,49 @@ class pyLLEHelper(LLEsolver):
 		δω = self.sol.δfreq[detuningIdx] * 2*np.pi
 		return _Acav, δω
 
-	def freezeSolitonSim(self,detuningIdx=-1,simDrifting=False,plotDriftingPos=False,plotFrozenPos=False,saveSolvers=False):
+	def customAnalyze(self,wg_name = 'TE_18'):
+		'''
+		Analyze function that creates Dint, mu_sim_center, f_center, ind_pump, and DKS_init. Needed for Julia code to 
+		run properly. Dint is a combination of measured data and simulated data
+		'''
+		self.calcDint(wg_name)
+		self._sim['mu_sim_center'] = self._sim['mu_sim']
+		self._sim['f_center'] = self._sim['f_pmp']
+		self._sim['ind_pmp'] = [0]
+		if not "DKS_init" in self._sim.keys():
+			self._sim["DKS_init"] = np.zeros(self._sim['Dint'].size)
+
+	def calcDint(self,wg_name='TE_18'):
+		df = pd.read_csv('SiN_Dispersion_Rect_Wg.csv')
+		df1 = pd.read_csv(self._res['dispfile'])
+		simAngFreqs = np.array([x for x in df[wg_name+' w'].values if str(x) != 'nan'])
+		simD = np.array([x for x in df[wg_name+' D'].values if str(x) != 'nan'])
+		measResFreqs = np.sort(df1['Resonance Frequency'].values)*1e12
+
+		measDint, D1, pmp_idx, mu, mu_corr = calcMeasDint(measResFreqs,self._sim['f_pmp'][0],D1_manual = self._sim['D1_manual'])
+		if not self._sim['D1_manual']:
+			measDint, D1, mu_corr = updateDint(measDint, D1, measResFreqs, pmp_idx, mu)
+		simDint, simResAngFreqs = calcSimDint(simAngFreqs, simD, D1, measResFreqs[pmp_idx]*2*np.pi,self.N_mu) #Setting f_pmp to the freq closest to given f_pmp in f list.
+		connDint = connectDint(simDint, measDint, mu_corr, self.N_mu)
+		plt.scatter(simResAngFreqs/2/np.pi,connDint)
+		#plt.xlim(1.8e14,2.1e14)
+		#plt.ylim(-50e10,50e10)
+		print("man D1",self._sim['D1_manual'],'calc D1', D1, D1==self._sim['D1_manual'])
+		self._res["ng"] = const.c/(np.gradient(simResAngFreqs/2/np.pi * 2*np.pi*self._res['R']))[pmp_idx] #copy paste ng calc. Need for stuff to not complain when running
+		self._sim["Dint"] = connDint 
+		self._sim["D1"] = D1 #If manual D1, prob dont need to call updateDint. will prob change D1 value
+		self._sim["FSR"] = [D1/2/np.pi]
+		self._sim["FSR_center"] = D1/2/np.pi
+		self._sim["D1_center"] = D1
+		self._sim["f_pmp"] = np.array([measResFreqs[pmp_idx]])
+		self.simDint = simDint
+		self.measDint = measDint
+		self.connDint = connDint
+		self.simAngFreqs = simResAngFreqs
+		self.measAngFreqs = measAngFreqs
+
+
+	def freezeSolitonSim(self,detuningIdx=-1,simDrifting=False,saveSolvers=False,custom_analyze=False):
 		'''
 		Freezes a soliton. Can either start with a solver object containing detuning sweep data OR a
 		solver object with drifting soliton data.
@@ -120,32 +171,21 @@ class pyLLEHelper(LLEsolver):
 		if simDrifting:
 			if detuningIdx == -1:
 				raise Exception("Forgot to input detuning index.")
-			DKSinit, δω = self.getDKSdata(detuningIdx)
-			DKSSim = self.createDKSSim(DKSinit,δω)
-
-			print("Running Simulation from Initialized State")
-			driftingSolver = pyLLEHelper(sim=DKSSim, res=self._res,debug=False)
-			driftingSolver.runSim(saveSolvers,"_DKS_Sim")
-
+			DKSSolver = self.DKSSim(detuningIdx, saveSolvers,custom_analyze)
 		else:
-			driftingSolver = self
-			DKSinit, δω = self._sim['DKS_init'],self._sim['domega_end']
+			DKSSolver = self
 
-		if plotDriftingPos:
-			driftingSolver.plotSolitonPos()
-		newD1 = driftingSolver.calcNewD1()
-		freezeSim = driftingSolver.createDKSSim(DKSinit,δω,newD1)
+		DKSinit, δω = DKSSolver._sim['DKS_init'],DKSSolver._sim['domega_end']
+		newD1 = DKSSolver.calcNewD1()
+		freezeSim = DKSSolver.update_sim(DKSinit,δω,newD1)
 
 		print("Running Simulation from Initialized State with adjusted D1")
 		frozenSolver = pyLLEHelper(sim=freezeSim, res=self._res,debug=False)
-		frozenSolver.runSim(saveSolvers,"_Frozen_DKS_Sim")
+		frozenSolver.runSim(saveSolvers,custom_analyze,"_Frozen_DKS_Sim")
 
-		if plotFrozenPos:
-			frozenSolver.plotSolitonPos()
-		return frozenSolver,driftingSolver
+		return frozenSolver,DKSSolver
 
-
-	def createDKSSim(self,DKSinit,δω,newD1=None):
+	def update_sim(self,DKSinit,δω,newD1=None):
 		'''
 		Adds the necessary data to the '_sim' dictionary. Needed as parameter for a LLEsolver object.
 
@@ -163,7 +203,7 @@ class pyLLEHelper(LLEsolver):
 
 	# Can make things less confusing by having this function deal with all the saving, just pass the wanted file name
 	# runSim() is used in every other function so might as well
-	def runSim(self,saveSolver=False,fname='_Untitled_Sim'):
+	def runSim(self,saveSolver=False,custom_analyze=False,fname='_Untitled_Sim',path="./"):
 		'''
 		Runs the simulation. Cranks out the sol object and all of the fields.
 
@@ -171,28 +211,39 @@ class pyLLEHelper(LLEsolver):
 			saveSolver - True if want to save pyLLEHelper, False if not. Will save in current dir as a .pkl
 			fname - string to name the saved pyLLEHelper. Will be concatenated to the end of the data file name.
 		'''
-		_ = self.Analyze(plot=False) #Adjust this function to plot Dint if wanted
+		if custom_analyze:
+			self.customAnalyze()
+		else:
+			_ = self.Analyze(plot=False) #Adjust this function to plot Dint if wanted
 		self.Setup(verbose=False)
 		self.SolveTemporal(bin=self.bin)
 		self.RetrieveData()
 		if saveSolver:
-			self.SaveResults(self.res.dispfile[:-4]+fname)
+			self.SaveResults(self._res['dispfile'][:-4]+fname,path)
 
-	def detuningSweepSim(self,saveSolver=False):
+	def detuningSweepSim(self,saveSolver=False,custom_analyze=True):
 		'''
 		Runs detuning sweep simulation. This is to be used when the solver only has mode/resonance freq data.
 		It will produce the sol object and all of the calulated fields.
 		'''
-		self.runSim(saveSolver,"_Detuning_Sweep_Sim")
+		self.runSim(saveSolver,custom_analyze,"_Detuning_Sweep_Sim")
 
-	def pinPerturbationSim(self, Manual_Pin, plotSolitonPos=False,saveSolver=False):
+	def DKSSim(self,detuningIdx,saveSolver=False,custom_analyze=False):
+		DKSinit, δω = self.getDKSdata(detuningIdx)
+		DKSSim = self.update_sim(DKSinit,δω)
+
+		print("Running Simulation from Initialized State")
+		DKSSolver = pyLLEHelper(sim=DKSSim, res=self._res,debug=False)
+		DKSSolver.runSim(saveSolver,custom_analyze,"_DKS_Sim")
+		return DKSSolver
+
+	def pinPerturbationSim(self, Manual_Pin,saveSolver=False,custom_analyze=False):
 		'''
 		Runs Pin Perturbation simulation. This is to be run on a frozen soliton to see the effects of perturbing the input
 		pump power.
 
 		Params:
 			Manual_Pin - list/array of length Tsan. Holds the perturbed input pump power for each round trip.
-			plotSolitonPos - True if soliton position plot wanted, False if not.
 			saveSolver - True if want to save pyLLEHelper as a .pkl.
 
 		Returns:
@@ -204,20 +255,17 @@ class pyLLEHelper(LLEsolver):
 		perturb_sim = self._sim.copy()
 		perturb_sim.update({"Manual_Pin":Manual_Pin})
 		pinSolver = pyLLEHelper(sim=perturb_sim,res=self._res,debug=False)
-		pinSolver.runSim(saveSolver,'_Pin_Perturbation_Sim')
+		pinSolver.runSim(saveSolver,custom_analyze,'_Pin_Perturbation_Sim')
 
-		if plotSolitonPos:
-			pinSolver.plotSolitonPos()
 		return pinSolver
 
-	def detuningPerturbationSim(self,Manual_Detuning,plotSolitonPos=False,saveSolver=False):
+	def detuningPerturbationSim(self,Manual_Detuning,saveSolver=False,custom_analyze=False):
 		'''
 		Runs Detuning Perturbation simulation. Needs to be run off a frozen soliton to get a better
 		idea of the perturbing effects.
 
 		Params:
 			Manual_Detuning - list/array of length Tsan. Holds the perturbed detuning values for each round trip.
-			plotSolitonPos - True if soliton position plot wanted, False if not.
 			saveSolver - True if want to save pyLLEHelper as a .pkl.
 
 		Returns:
@@ -229,13 +277,11 @@ class pyLLEHelper(LLEsolver):
 		perturb_sim = self._sim.copy()
 		perturb_sim.update({"Manual_Detuning":Manual_Detuning})
 		detuningSolver = pyLLEHelper(sim=perturb_sim,res=self._res,debug=False)
-		detuningSolver.runSim(saveSolver,"_Detuning_Perturbation_Sim")
+		detuningSolver.runSim(saveSolver,custom_analyze,"_Detuning_Perturbation_Sim")
 
-		if plotSolitonPos:
-			detuningSolver.plotSolitonPos()
 		return detuningSolver
 
-	def detuningAndPinPerturbationSim(self,Manual_Detuning,Manual_Pin,plotSolitonPos=False,saveSolver=False):
+	def detuningAndPinPerturbationSim(self,Manual_Detuning,Manual_Pin,saveSolver=False,custom_analyze=False):
 		'''
 		Runs Detuning and Pin Perturbation simulation at the same time. Needs to be run off a frozen soliton to get a better
 		idea of the perturbing effects.
@@ -243,7 +289,6 @@ class pyLLEHelper(LLEsolver):
 		Params:
 			Manual_Detuning - list/array of length Tsan. Holds the perturbed detuning values for each round trip.
 			Manual_Pin -  list/array of length Tsan. Holds the perturbed input pump power for each round trip.
-			plotSolitonPos - True if soliton position plot wanted, False if not.
 			saveSolver - True if want to save pyLLEHelper as a .pkl.
 
 		Returns:
@@ -255,10 +300,8 @@ class pyLLEHelper(LLEsolver):
 		perturb_sim = self._sim.copy()
 		perturb_sim.update({"Manual_Detuning":Manual_Detuning,"Manual_Pin":Manual_Pin})
 		doublyPerturbSolver = pyLLEHelper(sim=perturb_sim,res=self._res,debug=False)
-		doublyPerturbSolver.runSim(saveSolver,"_Doubly_Perturbed_Sim")
+		doublyPerturbSolver.runSim(saveSolver,custom_analyze,"_Doubly_Perturbed_Sim")
 
-		if plotSolitonPos:
-			doublyPerturbSolver.plotSolitonPos()
 		return doublyPerturbSolver
 
 	def plotMaxAcavAmplitudes(self):
@@ -317,6 +360,9 @@ class pyLLEHelper(LLEsolver):
 		fig.update_layout(xaxis_title = "LLE subsampled step", yaxis_title = "Resonator angle θ (x π)")
 		return go.FigureWidget(fig)
 
+
+	def plotDint(self):
+		return self.Analyze(plot=True)
 
 	def plotThetaPerStep(self):
 		'''
