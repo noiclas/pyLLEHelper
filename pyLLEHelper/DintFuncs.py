@@ -94,8 +94,15 @@ def updateDint(Dint, D1,resFreq, pmp_idx, mu):
 
     return Dint, D1, mu_corr
 
-def connectDint(DintFit,Dint, mu_corr, N_mu):
+def connectDint(DintFit,Dint, mu_corr, N_mu, pmp_idx):
+   #If pump mode is an outlier, shift Dint Sim
+    sample = Dint[pmp_idx-5:pmp_idx+5]
+    d = np.abs(sample - np.median(sample))
+    mdev = np.median(d)
+    s = d / mdev if mdev else np.zeros(len(d))
+    offset = np.mean(sample[s < 2])
+
     connDint = np.copy(DintFit)
     for idx,mu in enumerate(mu_corr):
-        connDint[N_mu+int(mu)] = Dint[idx]
+        connDint[N_mu+int(mu)] = Dint[idx]-offset
     return connDint

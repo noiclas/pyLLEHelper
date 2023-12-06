@@ -133,7 +133,7 @@ class pyLLEHelper(LLEsolver):
 		if not self._sim['D1_manual']:
 			measDint, D1, mu_corr = updateDint(measDint, D1, measResFreqs, pmp_idx, mu)
 		simDint, simResAngFreqs = calcSimDint(simAngFreqs, simD, D1, measResFreqs[pmp_idx]*2*np.pi,self.N_mu) #Setting f_pmp to the freq closest to given f_pmp in f list.
-		connDint = connectDint(simDint, measDint, mu_corr, self.N_mu)
+		connDint = connectDint(simDint, measDint, mu_corr, self.N_mu, pmp_idx)
 		plt.scatter(simResAngFreqs/2/np.pi,connDint)
 		#plt.xlim(1.8e14,2.1e14)
 		#plt.ylim(-50e10,50e10)
