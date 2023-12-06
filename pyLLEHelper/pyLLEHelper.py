@@ -149,7 +149,7 @@ class pyLLEHelper(LLEsolver):
 		self.measDint = measDint
 		self.connDint = connDint
 		self.simAngFreqs = simResAngFreqs
-		self.measAngFreqs = measAngFreqs
+		self.measResFreqs = measResFreqs
 
 
 	def freezeSolitonSim(self,detuningIdx=-1,simDrifting=False,saveSolvers=False,custom_analyze=False):
