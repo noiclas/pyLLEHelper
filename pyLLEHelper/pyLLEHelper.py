@@ -12,6 +12,9 @@ pio.renderers.default = "notebook"
 pio.templates.default = "seaborn"
 
 
+dispersionFile = os.path.dirname(os.path.abspath(__file__))
+dispersionFile = os.path.join(dispersionFile, "SiN_Dispersion_Rect_Wg.csv") 
+
 class pyLLEHelper(LLEsolver):
 	'''
 	Class that makes using pyLLE more streamlined for soliton perturbations. All simulations will
@@ -123,7 +126,7 @@ class pyLLEHelper(LLEsolver):
 			self._sim["DKS_init"] = np.zeros(self._sim['Dint'].size)
 
 	def calcDint(self,wg_name='TE_18'):
-		df = pd.read_csv('./SiN_Dispersion_Rect_Wg.csv')
+		df = pd.read_csv(dispersionFile)
 		df1 = pd.read_csv(self._res['dispfile'])
 		simAngFreqs = np.array([x for x in df[wg_name+' w'].values if str(x) != 'nan'])
 		simD = np.array([x for x in df[wg_name+' D'].values if str(x) != 'nan'])
