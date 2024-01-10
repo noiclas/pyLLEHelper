@@ -70,7 +70,7 @@ def calcMeasDint(resFreq,fpmp,D1_manual):
     _center_index = np.where(np.abs(resFreq-fpmp) < 0.5*D1/2/np.pi)[0]
     assert _center_index.size == 1, 'Wavelength not found!'
     center_index = _center_index[0]
-    print('PUMP IS:',resFreq[center_index])
+    print('Pump Frequency found at:',resFreq[center_index],'Hz')
     mu = index_index-center_index-1
     w0 = w[peak_indexes[center_index]]
 

@@ -2,6 +2,7 @@ from .Edited_llesolver import LLEsolver #Just need to change the Julia file that
 from .DintFuncs import *
 import numpy as np
 import matplotlib.pyplot as plt
+from matplotlib.animation import FuncAnimation
 import plotly.graph_objs as go
 import plotly.io as pio
 import pickle as pkl
@@ -112,6 +113,10 @@ class pyLLEHelper(LLEsolver):
 		_Acav = self._sol['u_probe'][:,detuningIdx]
 		δω = self.sol.δfreq[detuningIdx] * 2*np.pi
 		return _Acav, δω
+
+	def getInstantaneuosFrep(self):
+		print("empty function")
+		pass
 
 	def customAnalyze(self,wg_name = 'TE_18'):
 		'''
@@ -363,6 +368,30 @@ class pyLLEHelper(LLEsolver):
 		fig.update_layout(xaxis_title = "LLE subsampled step", yaxis_title = "Resonator angle θ (x π)")
 		return go.FigureWidget(fig)
 
+
+	def animateRing(self,start,end,step):
+		fig, ax = plt.subplots(subplot_kw={'projection': "3d"})
+		plt.rcParams["animation.html"] = "jshtml"
+		plt.ioff()
+
+		frames = (end-start)//step
+		theta = np.linspace(0,2*np.pi,2*self.N_mu+1)
+
+		Z = np.abs(self.sol.Acav**2).T[start:end+1]
+		r = np.max(Z)
+		X = r*np.cos(theta)
+		Y = r*np.sin(theta)
+
+		def update(frame):
+		    ax.cla()
+		    ax.plot3D(X,Y,Z[frame*step])
+		    ax.set_zlim3d(0, r)
+		    ax.set_xticklabels([])
+		    ax.set_yticklabels([])
+		    ax.set_title('time step: %d'%(start+frame*step))
+
+		anim = FuncAnimation(fig=fig, func=update,frames=frames)
+		return anim
 
 	def plotDint(self):
 		return self.Analyze(plot=True)
