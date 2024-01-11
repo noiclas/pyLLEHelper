@@ -7,3 +7,6 @@ laser power perturbation, detuning perturbation, integrated dispersion calculati
 
 # Coming Implementations
 instantaneous repetiton rate extraction, repetition rate repetition rate noise analysis
+
+
+Built by Nic Arnaud and Mark Harrington.
